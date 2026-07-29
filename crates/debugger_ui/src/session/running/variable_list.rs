@@ -233,9 +233,11 @@ impl VariableList {
                 }
                 _ => {}
             }),
-            cx.on_focus_out(&focus_handle, window, |this, _, _, cx| {
-                this.edited_path.take();
-                cx.notify();
+            cx.on_focus_out(&focus_handle, window, |this, event, _, cx| {
+                if event.reason.is_focus_moved() {
+                    this.edited_path.take();
+                    cx.notify();
+                }
             }),
         ];
 

@@ -1,7 +1,8 @@
 use crate::{
-    AnyView, AnyWindowHandle, AppContext, AsyncApp, DispatchPhase, Effect, EntityId, EventEmitter,
-    FocusHandle, FocusOutEvent, Focusable, Global, KeystrokeObserver, Priority, Reservation,
-    SubscriberSet, Subscription, Task, WeakEntity, WeakFocusHandle, Window, WindowHandle,
+    AnyView, AnyWindowHandle, AppContext, AsyncApp, BlurReason, DispatchPhase, Effect, EntityId,
+    EventEmitter, FocusHandle, FocusOutEvent, Focusable, Global, KeystrokeObserver, Priority,
+    Reservation, SubscriberSet, Subscription, Task, WeakEntity, WeakFocusHandle, Window,
+    WindowHandle,
 };
 use anyhow::Result;
 use futures::FutureExt;
@@ -595,12 +596,14 @@ impl<'a, T: 'static> Context<'a, T> {
     }
 
     /// Register a listener to be called when the given focus handle loses focus.
+    /// The listener receives the [`BlurReason`] and must decide whether it applies to a focus move
+    /// within the window, to the window losing OS focus, or to both.
     /// Returns a subscription and persists until the subscription is dropped.
     pub fn on_blur(
         &mut self,
         handle: &FocusHandle,
         window: &mut Window,
-        mut listener: impl FnMut(&mut T, &mut Window, &mut Context<T>) + 'static,
+        mut listener: impl FnMut(&mut T, BlurReason, &mut Window, &mut Context<T>) + 'static,
     ) -> Subscription {
         let view = self.weak_entity();
         let focus_id = handle.id;
@@ -610,7 +613,7 @@ impl<'a, T: 'static> Context<'a, T> {
                     if event.previous_focus_path.last() == Some(&focus_id)
                         && event.current_focus_path.last() != Some(&focus_id)
                     {
-                        listener(view, window, cx)
+                        listener(view, event.blur_reason, window, cx)
                     }
                 })
                 .is_ok()
@@ -661,6 +664,7 @@ impl<'a, T: 'static> Context<'a, T> {
                                 id: blurred_id,
                                 handles: Arc::downgrade(&cx.focus_handles),
                             },
+                            reason: event.blur_reason,
                         };
                         listener(view, event, window, cx)
                     }

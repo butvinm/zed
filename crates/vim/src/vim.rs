@@ -29,8 +29,8 @@ use editor::{
     movement::{self, FindRange},
 };
 use gpui::{
-    Action, App, AppContext, Axis, Context, Entity, EventEmitter, KeyContext, KeystrokeEvent,
-    Render, Subscription, Task, WeakEntity, Window, actions,
+    Action, App, AppContext, Axis, BlurReason, Context, Entity, EventEmitter, KeyContext,
+    KeystrokeEvent, Render, Subscription, Task, WeakEntity, Window, actions,
 };
 use insert::{NormalBefore, TemporaryNormal};
 use language::{
@@ -1090,7 +1090,7 @@ impl Vim {
     ) {
         match event {
             EditorEvent::Focused => self.focused(true, window, cx),
-            EditorEvent::Blurred => self.blurred(window, cx),
+            EditorEvent::Blurred(reason) => self.blurred(*reason, window, cx),
             EditorEvent::SelectionsChanged { local: true } => {
                 self.local_selections_changed(window, cx);
             }
@@ -1527,10 +1527,15 @@ impl Vim {
         Vim::globals(cx).focused_vim = Some(cx.entity().downgrade());
     }
 
-    fn blurred(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.stop_recording_immediately(NormalBefore.boxed_clone(), cx);
-        self.store_visual_marks(window, cx);
-        self.clear_operator(window, cx);
+    fn blurred(&mut self, reason: BlurReason, window: &mut Window, cx: &mut Context<Self>) {
+        // A deactivated window still has this editor as its focus target, so pending vim state
+        // (macro recording, an operator waiting for its motion) must survive until the user
+        // actually moves focus somewhere else.
+        if reason.is_focus_moved() {
+            self.stop_recording_immediately(NormalBefore.boxed_clone(), cx);
+            self.store_visual_marks(window, cx);
+            self.clear_operator(window, cx);
+        }
         self.update_editor(cx, |vim, editor, cx| {
             if vim.cursor_shape(cx) == CursorShape::Block {
                 editor.set_cursor_shape(CursorShape::Hollow, cx);

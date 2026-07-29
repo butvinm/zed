@@ -7,7 +7,7 @@ use editor::actions::OpenExcerpts;
 
 use crate::StartThreadIn;
 use crate::message_editor::SharedSessionCapabilities;
-use gpui::{Corner, List};
+use gpui::{BlurReason, Corner, List};
 use heapless::Vec as ArrayVec;
 use language_model::{LanguageModelEffortLevel, Speed};
 use settings::update_settings_file;
@@ -584,7 +584,7 @@ impl ThreadView {
             MessageEditorEvent::Focus => {
                 self.cancel_editing(&Default::default(), window, cx);
             }
-            MessageEditorEvent::LostFocus => {}
+            MessageEditorEvent::LostFocus(_) => {}
             MessageEditorEvent::InputAttempted { .. } => {}
         }
     }
@@ -701,7 +701,14 @@ impl ThreadView {
                     cx.notify();
                 }
             }
-            ViewEvent::MessageEditorEvent(editor, MessageEditorEvent::LostFocus) => {
+            ViewEvent::MessageEditorEvent(
+                _editor,
+                MessageEditorEvent::LostFocus(BlurReason::WindowDeactivated),
+            ) => {}
+            ViewEvent::MessageEditorEvent(
+                editor,
+                MessageEditorEvent::LostFocus(BlurReason::FocusMoved),
+            ) => {
                 if let Some(AgentThreadEntry::UserMessage(user_message)) =
                     self.thread.read(cx).entries().get(event.entry_index)
                     && user_message.id.is_some()
@@ -1550,7 +1557,8 @@ impl ThreadView {
                         .detach_and_log_err(cx);
                 })
             }
-            EditorEvent::Blurred => {
+            EditorEvent::Blurred(BlurReason::WindowDeactivated) => {}
+            EditorEvent::Blurred(BlurReason::FocusMoved) => {
                 if title_editor.read(cx).text(cx).is_empty() {
                     title_editor.update(cx, |editor, cx| {
                         editor.set_text(DEFAULT_THREAD_TITLE, window, cx);

@@ -2209,7 +2209,7 @@ impl ConversationView {
                         window,
                         cx,
                     ),
-                    MessageEditorEvent::LostFocus => {
+                    MessageEditorEvent::LostFocus(_) => {
                         this.save_queued_message_at_index(index, cx);
                     }
                     MessageEditorEvent::Cancel => {

@@ -8,10 +8,10 @@ mod terminal_slash_command;
 use assistant_slash_command::SlashCommandRegistry;
 use editor::{Editor, EditorSettings, actions::SelectAll, blink_manager::BlinkManager};
 use gpui::{
-    Action, AnyElement, App, ClipboardEntry, DismissEvent, Entity, EventEmitter, ExternalPaths,
-    FocusHandle, Focusable, Font, KeyContext, KeyDownEvent, Keystroke, MouseButton, MouseDownEvent,
-    Pixels, Point, Render, ScrollWheelEvent, Styled, Subscription, Task, WeakEntity, actions,
-    anchored, deferred, div,
+    Action, AnyElement, App, BlurReason, ClipboardEntry, DismissEvent, Entity, EventEmitter,
+    ExternalPaths, FocusHandle, Focusable, Font, KeyContext, KeyDownEvent, Keystroke, MouseButton,
+    MouseDownEvent, Pixels, Point, Render, ScrollWheelEvent, Styled, Subscription, Task,
+    WeakEntity, actions, anchored, deferred, div,
 };
 use itertools::Itertools;
 use menu;
@@ -456,7 +456,7 @@ impl TerminalView {
         let rename_editor_subscription = cx.subscribe_in(&rename_editor, window, {
             let rename_editor = rename_editor.clone();
             move |_this, _, event, window, cx| {
-                if let editor::EditorEvent::Blurred = event {
+                if let editor::EditorEvent::Blurred(BlurReason::FocusMoved) = event {
                     // Defer to let focus settle (avoids canceling during double-click).
                     let rename_editor = rename_editor.clone();
                     cx.defer_in(window, move |this, window, cx| {

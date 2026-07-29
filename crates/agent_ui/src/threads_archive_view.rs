@@ -176,10 +176,16 @@ impl ThreadsArchiveView {
         )
         .detach();
 
-        cx.on_focus_out(&focus_handle, window, |this: &mut Self, _, _window, cx| {
-            this.selection = None;
-            cx.notify();
-        })
+        cx.on_focus_out(
+            &focus_handle,
+            window,
+            |this: &mut Self, event, _window, cx| {
+                if event.reason.is_focus_moved() {
+                    this.selection = None;
+                    cx.notify();
+                }
+            },
+        )
         .detach();
 
         let mut this = Self {

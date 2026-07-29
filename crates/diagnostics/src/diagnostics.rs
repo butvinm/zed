@@ -17,9 +17,9 @@ use editor::{
     multibuffer_context_lines,
 };
 use gpui::{
-    AnyElement, App, AsyncApp, Context, Entity, EventEmitter, FocusHandle, FocusOutEvent,
-    Focusable, Global, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    Styled, Subscription, Task, WeakEntity, Window, actions, div,
+    AnyElement, App, AsyncApp, BlurReason, Context, Entity, EventEmitter, FocusHandle,
+    FocusOutEvent, Focusable, Global, InteractiveElement, IntoElement, ParentElement, Render,
+    SharedString, Styled, Subscription, Task, WeakEntity, Window, actions, div,
 };
 use itertools::Itertools as _;
 use language::{
@@ -246,7 +246,10 @@ impl ProjectDiagnosticsEditor {
                             window.focus(&this.focus_handle, cx);
                         }
                     }
-                    EditorEvent::Blurred => this.close_diagnosticless_buffers(cx, false),
+                    EditorEvent::Blurred(BlurReason::FocusMoved) => {
+                        this.close_diagnosticless_buffers(cx, false)
+                    }
+                    EditorEvent::Blurred(BlurReason::WindowDeactivated) => {}
                     EditorEvent::Saved => this.close_diagnosticless_buffers(cx, true),
                     EditorEvent::SelectionsChanged { .. } => {
                         this.close_diagnosticless_buffers(cx, true)
@@ -436,8 +439,10 @@ impl ProjectDiagnosticsEditor {
         }
     }
 
-    fn focus_out(&mut self, _: FocusOutEvent, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.focus_handle.is_focused(window) && !self.editor.focus_handle(cx).is_focused(window)
+    fn focus_out(&mut self, event: FocusOutEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if event.reason.is_focus_moved()
+            && !self.focus_handle.is_focused(window)
+            && !self.editor.focus_handle(cx).is_focused(window)
         {
             self.close_diagnosticless_buffers(cx, false);
         }

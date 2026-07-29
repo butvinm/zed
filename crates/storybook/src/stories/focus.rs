@@ -28,20 +28,20 @@ impl FocusStory {
                 cx.on_focus(&parent_focus, window, |_, _, _| {
                     println!("Parent focused");
                 }),
-                cx.on_blur(&parent_focus, window, |_, _, _| {
-                    println!("Parent blurred");
+                cx.on_blur(&parent_focus, window, |_, reason, _, _| {
+                    println!("Parent blurred: {reason:?}");
                 }),
                 cx.on_focus(&child_1_focus, window, |_, _, _| {
                     println!("Child 1 focused");
                 }),
-                cx.on_blur(&child_1_focus, window, |_, _, _| {
-                    println!("Child 1 blurred");
+                cx.on_blur(&child_1_focus, window, |_, reason, _, _| {
+                    println!("Child 1 blurred: {reason:?}");
                 }),
                 cx.on_focus(&child_2_focus, window, |_, _, _| {
                     println!("Child 2 focused");
                 }),
-                cx.on_blur(&child_2_focus, window, |_, _, _| {
-                    println!("Child 2 blurred");
+                cx.on_blur(&child_2_focus, window, |_, reason, _, _| {
+                    println!("Child 2 blurred: {reason:?}");
                 }),
             ];
 

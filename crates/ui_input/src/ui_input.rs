@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use gpui::{FocusHandle, Subscription};
+use gpui::{BlurReason, FocusHandle, Subscription};
 pub use input_field::*;
 use ui::{AnyElement, App, Window};
 
@@ -36,7 +36,7 @@ pub trait ErasedEditor: 'static {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ErasedEditorEvent {
     BufferEdited,
-    Blurred,
+    Blurred(BlurReason),
 }
 pub static ERASED_EDITOR_FACTORY: OnceLock<fn(&mut Window, &mut App) -> Arc<dyn ErasedEditor>> =
     OnceLock::new();

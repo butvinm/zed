@@ -1396,7 +1396,7 @@ impl BufferSearchBar {
     ) {
         match event {
             editor::EditorEvent::Focused => self.query_editor_focused = true,
-            editor::EditorEvent::Blurred => self.query_editor_focused = false,
+            editor::EditorEvent::Blurred(_) => self.query_editor_focused = false,
             editor::EditorEvent::Edited { .. } => {
                 self.smartcase(window, cx);
                 self.clear_matches(window, cx);
@@ -1426,7 +1426,7 @@ impl BufferSearchBar {
     ) {
         match event {
             editor::EditorEvent::Focused => self.replacement_editor_focused = true,
-            editor::EditorEvent::Blurred => self.replacement_editor_focused = false,
+            editor::EditorEvent::Blurred(_) => self.replacement_editor_focused = false,
             _ => {}
         }
     }

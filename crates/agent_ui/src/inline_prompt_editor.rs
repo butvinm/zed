@@ -466,7 +466,7 @@ impl<T: 'static> PromptEditor<T> {
                 self.session_state.completion = CompletionState::Pending;
                 cx.notify();
             }
-            EditorEvent::Blurred => {
+            EditorEvent::Blurred(_) => {
                 if self.show_rate_limit_notice {
                     self.show_rate_limit_notice = false;
                     cx.notify();

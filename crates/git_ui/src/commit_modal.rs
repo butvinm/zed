@@ -205,8 +205,9 @@ impl CommitModal {
 
         let focus_handle = commit_editor.focus_handle(cx);
 
-        cx.on_focus_out(&focus_handle, window, |this, _, window, cx| {
-            if !this.branch_list_handle.is_focused(window, cx)
+        cx.on_focus_out(&focus_handle, window, |this, event, window, cx| {
+            if event.reason.is_focus_moved()
+                && !this.branch_list_handle.is_focused(window, cx)
                 && !this.commit_menu_handle.is_focused(window, cx)
             {
                 cx.emit(DismissEvent);

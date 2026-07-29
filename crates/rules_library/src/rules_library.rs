@@ -3,9 +3,9 @@ use collections::{HashMap, HashSet};
 use editor::{CompletionProvider, SelectionEffects};
 use editor::{CurrentLineHighlight, Editor, EditorElement, EditorEvent, EditorStyle, actions::Tab};
 use gpui::{
-    App, Bounds, DEFAULT_ADDITIONAL_WINDOW_SIZE, Entity, EventEmitter, Focusable, PromptLevel,
-    Subscription, Task, TextStyle, Tiling, TitlebarOptions, WindowBounds, WindowHandle,
-    WindowOptions, actions, point, size, transparent_black,
+    App, BlurReason, Bounds, DEFAULT_ADDITIONAL_WINDOW_SIZE, Entity, EventEmitter, Focusable,
+    PromptLevel, Subscription, Task, TextStyle, Tiling, TitlebarOptions, WindowBounds,
+    WindowHandle, WindowOptions, actions, point, size, transparent_black,
 };
 use language::{Buffer, LanguageRegistry, language_settings::SoftWrap};
 use language_model::{
@@ -1025,7 +1025,7 @@ impl RulesLibrary {
                 self.save_rule(prompt_id, window, cx);
                 self.count_tokens(prompt_id, window, cx);
             }
-            EditorEvent::Blurred => {
+            EditorEvent::Blurred(BlurReason::FocusMoved) => {
                 title_editor.update(cx, |title_editor, cx| {
                     title_editor.change_selections(
                         SelectionEffects::no_scroll(),
@@ -1055,7 +1055,7 @@ impl RulesLibrary {
                 self.save_rule(prompt_id, window, cx);
                 self.count_tokens(prompt_id, window, cx);
             }
-            EditorEvent::Blurred => {
+            EditorEvent::Blurred(BlurReason::FocusMoved) => {
                 body_editor.update(cx, |body_editor, cx| {
                     body_editor.change_selections(
                         SelectionEffects::no_scroll(),

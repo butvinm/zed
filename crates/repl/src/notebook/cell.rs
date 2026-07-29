@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 use editor::{Editor, EditorMode, MultiBuffer, SizingBehavior};
 use futures::future::Shared;
 use gpui::{
-    App, Entity, EventEmitter, Focusable, Hsla, InteractiveElement, RetainAllImageCache,
-    StatefulInteractiveElement, Task, TextStyleRefinement, prelude::*,
+    App, BlurReason, Entity, EventEmitter, Focusable, Hsla, InteractiveElement,
+    RetainAllImageCache, StatefulInteractiveElement, Task, TextStyleRefinement, prelude::*,
 };
 use language::{Buffer, Language, LanguageRegistry};
 use markdown::{Markdown, MarkdownElement, MarkdownStyle};
@@ -385,7 +385,7 @@ impl MarkdownCell {
 
         let editor_subscription =
             cx.subscribe(&editor, move |this, _editor, event, cx| match event {
-                editor::EditorEvent::Blurred => {
+                editor::EditorEvent::Blurred(BlurReason::FocusMoved) => {
                     if this.editing {
                         this.editing = false;
                         cx.emit(MarkdownCellEvent::FinishedEditing);

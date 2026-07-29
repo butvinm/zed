@@ -22,8 +22,8 @@ use editor::{
 };
 use futures::{FutureExt as _, future::join_all};
 use gpui::{
-    AppContext, ClipboardEntry, Context, Entity, EventEmitter, FocusHandle, Focusable, ImageFormat,
-    KeyContext, SharedString, Subscription, Task, TextStyle, WeakEntity,
+    AppContext, BlurReason, ClipboardEntry, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    ImageFormat, KeyContext, SharedString, Subscription, Task, TextStyle, WeakEntity,
 };
 use language::{Buffer, language_settings::InlayHintKind};
 use parking_lot::RwLock;
@@ -150,7 +150,7 @@ pub enum MessageEditorEvent {
     SendImmediately,
     Cancel,
     Focus,
-    LostFocus,
+    LostFocus(BlurReason),
     InputAttempted {
         text: Arc<str>,
         cursor_offset: usize,
@@ -241,8 +241,8 @@ impl MessageEditor {
             cx.emit(MessageEditorEvent::Focus)
         })
         .detach();
-        cx.on_focus_out(&editor.focus_handle(cx), window, |_, _, _, cx| {
-            cx.emit(MessageEditorEvent::LostFocus)
+        cx.on_focus_out(&editor.focus_handle(cx), window, |_, event, _, cx| {
+            cx.emit(MessageEditorEvent::LostFocus(event.reason))
         })
         .detach();
 

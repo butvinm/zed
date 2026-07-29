@@ -195,6 +195,7 @@ pub(crate) type AnyWindowFocusListener =
 pub(crate) struct WindowFocusEvent {
     pub(crate) previous_focus_path: SmallVec<[FocusId; 8]>,
     pub(crate) current_focus_path: SmallVec<[FocusId; 8]>,
+    pub(crate) blur_reason: BlurReason,
 }
 
 impl WindowFocusEvent {
@@ -207,10 +208,37 @@ impl WindowFocusEvent {
     }
 }
 
+/// Why a focus handle stopped being focused.
+///
+/// GPUI reports a blur both when focus moves within the window and when the window itself stops
+/// being the OS-active window. Those are different facts about the user's intent: only the first
+/// means the user directed their attention elsewhere. Handlers that cancel, dismiss or commit
+/// pending input must react to [`BlurReason::FocusMoved`] alone, otherwise switching applications
+/// - or, on Wayland, merely switching keyboard layout - destroys the user's in-progress input.
+/// Handlers that only adjust presentation (cursor blink, selection highlight, hover popovers)
+/// usually react to both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlurReason {
+    /// Focus moved to a different element, or to nothing at all, while the window stayed active.
+    FocusMoved,
+    /// The window stopped being the OS-active window. The blurred handle is still the window's
+    /// focus target and regains focus when the window is activated again.
+    WindowDeactivated,
+}
+
+impl BlurReason {
+    /// Whether the user moved focus away themselves, rather than the window losing OS focus.
+    pub fn is_focus_moved(self) -> bool {
+        matches!(self, BlurReason::FocusMoved)
+    }
+}
+
 /// This is provided when subscribing for `Context::on_focus_out` events.
 pub struct FocusOutEvent {
     /// A weak focus handle representing what was blurred.
     pub blurred: WeakFocusHandle,
+    /// Why the handle stopped being focused.
+    pub reason: BlurReason,
 }
 
 slotmap::new_key_type! {
@@ -2302,6 +2330,11 @@ impl Window {
                 } else {
                     Default::default()
                 },
+                blur_reason: if previous_window_active && !current_window_active {
+                    BlurReason::WindowDeactivated
+                } else {
+                    BlurReason::FocusMoved
+                },
             };
             self.focus_listeners
                 .clone()
@@ -4028,6 +4061,7 @@ impl Window {
                             id: blurred_id,
                             handles: Arc::downgrade(&cx.focus_handles),
                         },
+                        reason: event.blur_reason,
                     };
                     listener(event, window, cx)
                 }

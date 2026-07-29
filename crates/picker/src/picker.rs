@@ -5,10 +5,10 @@ pub mod popover_menu;
 use anyhow::Result;
 
 use gpui::{
-    Action, AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, EventEmitter, FocusHandle,
-    Focusable, Length, ListSizingBehavior, ListState, MouseButton, MouseUpEvent, Pixels, Render,
-    ScrollStrategy, Task, UniformListScrollHandle, Window, actions, canvas, div, list, prelude::*,
-    uniform_list,
+    Action, AnyElement, App, BlurReason, Bounds, ClickEvent, Context, DismissEvent, EventEmitter,
+    FocusHandle, Focusable, Length, ListSizingBehavior, ListState, MouseButton, MouseUpEvent,
+    Pixels, Render, ScrollStrategy, Task, UniformListScrollHandle, Window, actions, canvas, div,
+    list, prelude::*, uniform_list,
 };
 use head::Head;
 use schemars::JsonSchema;
@@ -649,20 +649,27 @@ impl<D: PickerDelegate> Picker<D> {
                 let query = editor.text(cx);
                 self.update_matches(query, window, cx);
             }
-            ErasedEditorEvent::Blurred => {
-                if self.is_modal && window.is_window_active() {
+            ErasedEditorEvent::Blurred(BlurReason::FocusMoved) => {
+                if self.is_modal {
                     self.cancel(&menu::Cancel, window, cx);
                 }
             }
+            ErasedEditorEvent::Blurred(BlurReason::WindowDeactivated) => {}
         }
     }
 
-    fn on_empty_head_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn on_empty_head_blur(
+        &mut self,
+        reason: BlurReason,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Head::Empty(_) = &self.head else {
             panic!("unexpected call");
         };
-        if window.is_window_active() {
-            self.cancel(&menu::Cancel, window, cx);
+        match reason {
+            BlurReason::FocusMoved => self.cancel(&menu::Cancel, window, cx),
+            BlurReason::WindowDeactivated => {}
         }
     }
 

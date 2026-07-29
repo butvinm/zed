@@ -114,8 +114,8 @@ use fuzzy::{StringMatch, StringMatchCandidate};
 use git::blame::{GitBlame, GlobalBlameRenderer};
 use gpui::{
     Action, Animation, AnimationExt, AnyElement, App, AppContext, AsyncWindowContext,
-    AvailableSpace, Background, Bounds, ClickEvent, ClipboardEntry, ClipboardItem, Context,
-    DispatchPhase, Edges, Entity, EntityId, EntityInputHandler, EventEmitter, FocusHandle,
+    AvailableSpace, Background, BlurReason, Bounds, ClickEvent, ClipboardEntry, ClipboardItem,
+    Context, DispatchPhase, Edges, Entity, EntityId, EntityInputHandler, EventEmitter, FocusHandle,
     FocusOutEvent, Focusable, FontId, FontStyle, FontWeight, Global, HighlightStyle, Hsla,
     KeyContext, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, PaintQuad, ParentElement,
     Pixels, PressureStage, Render, ScrollHandle, SharedString, SharedUri, Size, Stateful, Styled,
@@ -25194,7 +25194,7 @@ impl Editor {
         self.refresh_inlay_hints(InlayHintRefreshReason::ModifiersChanged(false), cx);
     }
 
-    pub fn handle_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn handle_blur(&mut self, reason: BlurReason, window: &mut Window, cx: &mut Context<Self>) {
         self.blink_manager.update(cx, BlinkManager::disable);
         self.buffer
             .update(cx, |buffer, cx| buffer.remove_active_selections(cx));
@@ -25214,7 +25214,7 @@ impl Editor {
             self.hide_context_menu(window, cx);
         }
         self.take_active_edit_prediction(true, cx);
-        cx.emit(EditorEvent::Blurred);
+        cx.emit(EditorEvent::Blurred(reason));
         cx.notify();
     }
 
@@ -28208,7 +28208,7 @@ pub enum EditorEvent {
     Reparsed(BufferId),
     Focused,
     FocusedIn,
-    Blurred,
+    Blurred(BlurReason),
     DirtyChanged,
     Saved,
     TitleChanged,
@@ -28743,7 +28743,7 @@ impl ui_input::ErasedEditor for ErasedEditorImpl {
         window.subscribe(&self.0, cx, move |_, event: &EditorEvent, window, cx| {
             let event = match event {
                 EditorEvent::BufferEdited => ui_input::ErasedEditorEvent::BufferEdited,
-                EditorEvent::Blurred => ui_input::ErasedEditorEvent::Blurred,
+                EditorEvent::Blurred(reason) => ui_input::ErasedEditorEvent::Blurred(*reason),
                 _ => return,
             };
             (callback)(event, window, cx);

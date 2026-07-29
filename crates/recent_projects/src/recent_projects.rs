@@ -567,16 +567,21 @@ impl RecentProjects {
 
         if style == ProjectPickerStyle::Popover {
             let picker_focus = picker.focus_handle(cx);
-            subscriptions.push(
-                cx.on_focus_out(&picker_focus, window, |this, _, window, cx| {
+            subscriptions.push(cx.on_focus_out(
+                &picker_focus,
+                window,
+                |this, event, window, cx| {
+                    if !event.reason.is_focus_moved() {
+                        return;
+                    }
                     let submenu_focused = this.picker.update(cx, |picker, cx| {
                         picker.delegate.actions_menu_handle.is_focused(window, cx)
                     });
                     if !submenu_focused {
                         cx.emit(DismissEvent);
                     }
-                }),
-            );
+                },
+            ));
         }
         // We do not want to block the UI on a potentially lengthy call to DB, so we're gonna swap
         // out workspace locations once the future runs to completion.

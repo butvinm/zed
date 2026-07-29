@@ -186,9 +186,11 @@ impl MemoryView {
             open_context_menu: None,
         };
         this.change_query_bar_mode(false, window, cx);
-        cx.on_focus_out(&this.focus_handle, window, |this, _, window, cx| {
-            this.change_query_bar_mode(false, window, cx);
-            cx.notify();
+        cx.on_focus_out(&this.focus_handle, window, |this, event, window, cx| {
+            if event.reason.is_focus_moved() {
+                this.change_query_bar_mode(false, window, cx);
+                cx.notify();
+            }
         })
         .detach();
         this

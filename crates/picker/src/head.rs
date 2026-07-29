@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{App, Entity, FocusHandle, Focusable, prelude::*};
+use gpui::{App, BlurReason, Entity, FocusHandle, Focusable, prelude::*};
 use ui::prelude::*;
 use ui_input::{ErasedEditor, ErasedEditorEvent};
 
@@ -42,7 +42,7 @@ impl Head {
     }
 
     pub fn empty<V: 'static>(
-        blur_handler: impl FnMut(&mut V, &mut Window, &mut Context<V>) + 'static,
+        blur_handler: impl FnMut(&mut V, BlurReason, &mut Window, &mut Context<V>) + 'static,
         window: &mut Window,
         cx: &mut Context<V>,
     ) -> Self {

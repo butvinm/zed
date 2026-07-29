@@ -64,9 +64,10 @@ use extension::ExtensionEvents;
 use extension_host::ExtensionStore;
 use fs::Fs;
 use gpui::{
-    Action, Animation, AnimationExt, AnyElement, App, AsyncWindowContext, ClipboardItem, Corner,
-    DismissEvent, Entity, EventEmitter, ExternalPaths, FocusHandle, Focusable, KeyContext, Pixels,
-    Subscription, Task, UpdateGlobal, WeakEntity, prelude::*, pulsating_between,
+    Action, Animation, AnimationExt, AnyElement, App, AsyncWindowContext, BlurReason,
+    ClipboardItem, Corner, DismissEvent, Entity, EventEmitter, ExternalPaths, FocusHandle,
+    Focusable, KeyContext, Pixels, Subscription, Task, UpdateGlobal, WeakEntity, prelude::*,
+    pulsating_between,
 };
 use language::LanguageRegistry;
 use language_model::{ConfigurationError, LanguageModelRegistry};
@@ -667,7 +668,8 @@ impl ActiveView {
                                     })
                             })
                         }
-                        EditorEvent::Blurred => {
+                        EditorEvent::Blurred(BlurReason::WindowDeactivated) => {}
+                        EditorEvent::Blurred(BlurReason::FocusMoved) => {
                             if editor.read(cx).text(cx).is_empty() {
                                 let summary = text_thread_editor
                                     .read(cx)

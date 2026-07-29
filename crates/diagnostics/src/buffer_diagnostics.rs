@@ -11,9 +11,9 @@ use editor::{
     multibuffer_context_lines,
 };
 use gpui::{
-    AnyElement, App, AppContext, Context, Entity, EntityId, EventEmitter, FocusHandle, Focusable,
-    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
-    Task, WeakEntity, Window, actions, div,
+    AnyElement, App, AppContext, BlurReason, Context, Entity, EntityId, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled,
+    Subscription, Task, WeakEntity, Window, actions, div,
 };
 use language::{Buffer, Capability, DiagnosticEntry, DiagnosticEntryRef, Point};
 use project::{
@@ -135,8 +135,10 @@ impl BufferDiagnosticsEditor {
         cx.on_focus_out(
             &focus_handle,
             window,
-            |buffer_diagnostics_editor, _event, window, cx| {
-                buffer_diagnostics_editor.focus_out(window, cx)
+            |buffer_diagnostics_editor, event, window, cx| {
+                if event.reason.is_focus_moved() {
+                    buffer_diagnostics_editor.focus_out(window, cx)
+                }
             },
         )
         .detach();
@@ -178,9 +180,10 @@ impl BufferDiagnosticsEditor {
                             window.focus(&buffer_diagnostics_editor.focus_handle, cx);
                         }
                     }
-                    EditorEvent::Blurred => {
+                    EditorEvent::Blurred(BlurReason::FocusMoved) => {
                         buffer_diagnostics_editor.update_all_excerpts(window, cx)
                     }
+                    EditorEvent::Blurred(BlurReason::WindowDeactivated) => {}
                     _ => {}
                 }
             },

@@ -7,8 +7,8 @@ use editor::{
     scroll::{Autoscroll, ScrollOffset},
 };
 use gpui::{
-    App, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Render, SharedString, Styled,
-    Subscription, div, prelude::*,
+    App, BlurReason, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Render,
+    SharedString, Styled, Subscription, div, prelude::*,
 };
 use language::Buffer;
 use multi_buffer::MultiBufferRow;
@@ -167,16 +167,15 @@ impl GoToLine {
         &mut self,
         _: &Entity<Editor>,
         event: &editor::EditorEvent,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
-            editor::EditorEvent::Blurred => {
-                if window.is_window_active() {
-                    self.prev_scroll_position.take();
-                    cx.emit(DismissEvent)
-                }
+            editor::EditorEvent::Blurred(BlurReason::FocusMoved) => {
+                self.prev_scroll_position.take();
+                cx.emit(DismissEvent)
             }
+            editor::EditorEvent::Blurred(BlurReason::WindowDeactivated) => {}
             editor::EditorEvent::BufferEdited => self.highlight_current_line(cx),
             _ => {}
         }

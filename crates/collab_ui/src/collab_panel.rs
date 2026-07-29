@@ -13,11 +13,11 @@ use db::kvp::KeyValueStore;
 use editor::{Editor, EditorElement, EditorStyle};
 use fuzzy::{StringMatch, StringMatchCandidate, match_strings};
 use gpui::{
-    AnyElement, App, AsyncWindowContext, Bounds, ClickEvent, ClipboardItem, Context, DismissEvent,
-    Div, Entity, EventEmitter, FocusHandle, Focusable, FontStyle, InteractiveElement, IntoElement,
-    KeyContext, ListOffset, ListState, MouseDownEvent, ParentElement, Pixels, Point, PromptLevel,
-    Render, SharedString, Styled, Subscription, Task, TextStyle, WeakEntity, Window, actions,
-    anchored, canvas, deferred, div, fill, list, point, prelude::*, px,
+    AnyElement, App, AsyncWindowContext, BlurReason, Bounds, ClickEvent, ClipboardItem, Context,
+    DismissEvent, Div, Entity, EventEmitter, FocusHandle, Focusable, FontStyle, InteractiveElement,
+    IntoElement, KeyContext, ListOffset, ListState, MouseDownEvent, ParentElement, Pixels, Point,
+    PromptLevel, Render, SharedString, Styled, Subscription, Task, TextStyle, WeakEntity, Window,
+    actions, anchored, canvas, deferred, div, fill, list, point, prelude::*, px,
 };
 use menu::{Cancel, Confirm, SecondaryConfirm, SelectNext, SelectPrevious};
 use project::{Fs, Project};
@@ -354,10 +354,7 @@ impl CollabPanel {
                 &channel_name_editor,
                 window,
                 |this: &mut Self, _, event, window, cx| {
-                    if let editor::EditorEvent::Blurred = event {
-                        if !window.is_window_active() {
-                            return;
-                        }
+                    if let editor::EditorEvent::Blurred(BlurReason::FocusMoved) = event {
                         if let Some(state) = &this.channel_editing_state
                             && state.pending_name().is_some()
                         {
