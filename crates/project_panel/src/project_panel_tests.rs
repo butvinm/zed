@@ -4673,13 +4673,26 @@ async fn test_rename_survives_window_deactivation(cx: &mut gpui::TestAppContext)
         .unwrap();
     let cx = &mut VisualTestContext::from_window(window.into(), cx);
     let panel = workspace.update_in(cx, ProjectPanel::new);
+    cx.update(|window, _| window.activate_window());
     cx.run_until_parked();
+    assert!(
+        cx.update(|window, _| window.is_window_active()),
+        "The window must be active, otherwise deactivating it below is a no-op and this test proves nothing"
+    );
 
     select_path(&panel, "root/file1.txt", cx);
     panel.update_in(cx, |panel, window, cx| panel.rename(&Rename, window, cx));
+    cx.run_until_parked();
     assert!(
         panel.read_with(cx, |panel, _| panel.state.edit_state.is_some()),
         "Rename should have started"
+    );
+    assert!(
+        panel.update_in(cx, |panel, window, cx| panel
+            .filename_editor
+            .focus_handle(cx)
+            .is_focused(window)),
+        "The filename editor must be focused, otherwise deactivating the window below blurs nothing"
     );
 
     cx.deactivate_window();

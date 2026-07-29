@@ -789,7 +789,7 @@ impl ProjectPanel {
             cx.subscribe_in(
                 &filename_editor,
                 window,
-                |project_panel, _, editor_event, window, cx| match editor_event {
+                |project_panel, _, editor_event, _window, cx| match editor_event {
                     EditorEvent::BufferEdited => {
                         project_panel.populate_validation_error(cx);
                         project_panel.autoscroll(cx);
@@ -797,29 +797,34 @@ impl ProjectPanel {
                     EditorEvent::SelectionsChanged { .. } => {
                         project_panel.autoscroll(cx);
                     }
-                    EditorEvent::Blurred => {
-                        if window.is_window_active()
-                            && project_panel
-                                .state
-                                .edit_state
-                                .as_ref()
-                                .is_some_and(|state| state.processing_filename.is_none())
-                        {
-                            match project_panel.confirm_edit(false, window, cx) {
-                                Some(task) => {
-                                    task.detach_and_notify_err(
-                                        project_panel.workspace.clone(),
-                                        window,
-                                        cx,
-                                    );
-                                }
-                                None => {
-                                    project_panel.discard_edit_state(window, cx);
-                                }
+                    _ => {}
+                },
+            )
+            .detach();
+
+            cx.on_blur_by_user(
+                &filename_editor.focus_handle(cx),
+                window,
+                |project_panel, window, cx| {
+                    if project_panel
+                        .state
+                        .edit_state
+                        .as_ref()
+                        .is_some_and(|state| state.processing_filename.is_none())
+                    {
+                        match project_panel.confirm_edit(false, window, cx) {
+                            Some(task) => {
+                                task.detach_and_notify_err(
+                                    project_panel.workspace.clone(),
+                                    window,
+                                    cx,
+                                );
+                            }
+                            None => {
+                                project_panel.discard_edit_state(window, cx);
                             }
                         }
                     }
-                    _ => {}
                 },
             )
             .detach();

@@ -134,6 +134,8 @@ impl GoToLine {
             editor
         });
         let line_editor_change = cx.subscribe_in(&line_editor, window, Self::on_line_editor_event);
+        let line_editor_blur =
+            cx.on_blur_by_user(&line_editor.focus_handle(cx), window, Self::on_line_editor_blur);
 
         let current_text = format!(
             "Current Line: {} of {} (column {})",
@@ -148,7 +150,11 @@ impl GoToLine {
             current_text: current_text.into(),
             prev_scroll_position: Some(scroll_position),
             current_line: line,
-            _subscriptions: vec![line_editor_change, cx.on_release_in(window, Self::release)],
+            _subscriptions: vec![
+                line_editor_change,
+                line_editor_blur,
+                cx.on_release_in(window, Self::release),
+            ],
         }
     }
 
@@ -167,19 +173,17 @@ impl GoToLine {
         &mut self,
         _: &Entity<Editor>,
         event: &editor::EditorEvent,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        match event {
-            editor::EditorEvent::Blurred => {
-                if window.is_window_active() {
-                    self.prev_scroll_position.take();
-                    cx.emit(DismissEvent)
-                }
-            }
-            editor::EditorEvent::BufferEdited => self.highlight_current_line(cx),
-            _ => {}
+        if let editor::EditorEvent::BufferEdited = event {
+            self.highlight_current_line(cx)
         }
+    }
+
+    fn on_line_editor_blur(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.prev_scroll_position.take();
+        cx.emit(DismissEvent)
     }
 
     fn highlight_current_line(&mut self, cx: &mut Context<Self>) {

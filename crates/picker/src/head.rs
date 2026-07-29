@@ -17,12 +17,15 @@ impl Head {
     pub fn editor<V: 'static>(
         placeholder_text: Arc<str>,
         mut edit_handler: impl FnMut(&mut V, &ErasedEditorEvent, &mut Window, &mut Context<V>) + 'static,
+        blur_handler: impl FnMut(&mut V, &mut Window, &mut Context<V>) + 'static,
         window: &mut Window,
         cx: &mut Context<V>,
     ) -> Self {
         let editor = (ui_input::ERASED_EDITOR_FACTORY.get().unwrap())(window, cx);
 
         editor.set_placeholder_text(placeholder_text.as_ref(), window, cx);
+        cx.on_blur_by_user(&editor.focus_handle(cx), window, blur_handler)
+            .detach();
         let this = cx.weak_entity();
         editor
             .subscribe(
@@ -47,7 +50,7 @@ impl Head {
         cx: &mut Context<V>,
     ) -> Self {
         let head = cx.new(EmptyHead::new);
-        cx.on_blur(&head.focus_handle(cx), window, blur_handler)
+        cx.on_blur_by_user(&head.focus_handle(cx), window, blur_handler)
             .detach();
         Self::Empty(head)
     }

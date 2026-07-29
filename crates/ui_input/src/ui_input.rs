@@ -33,10 +33,12 @@ pub trait ErasedEditor: 'static {
     fn as_any(&self) -> &dyn Any;
 }
 
+/// Blur is deliberately absent here: observing blur correctly requires distinguishing a
+/// genuine focus move from the window being deactivated, so consumers should subscribe to
+/// [`ErasedEditor::focus_handle`] with `Context::on_blur_by_user` instead.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ErasedEditorEvent {
     BufferEdited,
-    Blurred,
 }
 pub static ERASED_EDITOR_FACTORY: OnceLock<fn(&mut Window, &mut App) -> Arc<dyn ErasedEditor>> =
     OnceLock::new();

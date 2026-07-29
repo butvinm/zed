@@ -28743,7 +28743,6 @@ impl ui_input::ErasedEditor for ErasedEditorImpl {
         window.subscribe(&self.0, cx, move |_, event: &EditorEvent, window, cx| {
             let event = match event {
                 EditorEvent::BufferEdited => ui_input::ErasedEditorEvent::BufferEdited,
-                EditorEvent::Blurred => ui_input::ErasedEditorEvent::Blurred,
                 _ => return,
             };
             (callback)(event, window, cx);

@@ -138,7 +138,7 @@ impl ModalLayer {
                         this.hide_modal(window, cx);
                     },
                 ),
-                cx.on_focus_out(&focus_handle, window, |this, _event, window, cx| {
+                cx.on_focus_out_by_user(&focus_handle, window, |this, _event, window, cx| {
                     if this.dismiss_on_focus_lost {
                         this.hide_modal(window, cx);
                     }

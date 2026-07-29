@@ -350,23 +350,18 @@ impl CollabPanel {
 
             let channel_name_editor = cx.new(|cx| Editor::single_line(window, cx));
 
-            cx.subscribe_in(
-                &channel_name_editor,
+            cx.on_blur_by_user(
+                &channel_name_editor.focus_handle(cx),
                 window,
-                |this: &mut Self, _, event, window, cx| {
-                    if let editor::EditorEvent::Blurred = event {
-                        if !window.is_window_active() {
-                            return;
-                        }
-                        if let Some(state) = &this.channel_editing_state
-                            && state.pending_name().is_some()
-                        {
-                            return;
-                        }
-                        this.take_editing_state(window, cx);
-                        this.update_entries(false, cx);
-                        cx.notify();
+                |this: &mut Self, window, cx| {
+                    if let Some(state) = &this.channel_editing_state
+                        && state.pending_name().is_some()
+                    {
+                        return;
                     }
+                    this.take_editing_state(window, cx);
+                    this.update_entries(false, cx);
+                    cx.notify();
                 },
             )
             .detach();

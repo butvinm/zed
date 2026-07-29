@@ -453,10 +453,10 @@ impl TerminalView {
             .unwrap_or_else(|| self.terminal.read(cx).title(true));
 
         let rename_editor = cx.new(|cx| Editor::single_line(window, cx));
-        let rename_editor_subscription = cx.subscribe_in(&rename_editor, window, {
-            let rename_editor = rename_editor.clone();
-            move |_this, _, event, window, cx| {
-                if let editor::EditorEvent::Blurred = event {
+        let rename_editor_subscription =
+            cx.on_blur_by_user(&rename_editor.focus_handle(cx), window, {
+                let rename_editor = rename_editor.clone();
+                move |_this, window, cx| {
                     // Defer to let focus settle (avoids canceling during double-click).
                     let rename_editor = rename_editor.clone();
                     cx.defer_in(window, move |this, window, cx| {
@@ -469,8 +469,7 @@ impl TerminalView {
                         }
                     });
                 }
-            }
-        });
+            });
 
         self.rename_editor = Some(rename_editor.clone());
         self.rename_editor_subscription = Some(rename_editor_subscription);

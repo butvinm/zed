@@ -4010,6 +4010,11 @@ impl Window {
     }
 
     /// Register a listener to be called when the given focus handle or one of its descendants loses focus.
+    ///
+    /// This also fires when the window is deactivated by the operating system; controls that
+    /// cancel, dismiss or commit in-progress user input want [`crate::Context::on_blur_by_user`]
+    /// or [`crate::Context::on_focus_out_by_user`] instead.
+    ///
     /// Returns a subscription and persists until the subscription is dropped.
     pub fn on_focus_out(
         &mut self,

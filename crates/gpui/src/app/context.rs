@@ -595,6 +595,11 @@ impl<'a, T: 'static> Context<'a, T> {
     }
 
     /// Register a listener to be called when the given focus handle loses focus.
+    ///
+    /// This also fires when the window is deactivated by the operating system, because window
+    /// deactivation blanks the window's focus path. Controls that cancel, dismiss or commit
+    /// in-progress user input on blur want [`Context::on_blur_by_user`] instead.
+    ///
     /// Returns a subscription and persists until the subscription is dropped.
     pub fn on_blur(
         &mut self,
@@ -619,6 +624,33 @@ impl<'a, T: 'static> Context<'a, T> {
         subscription
     }
 
+    /// Register a listener to be called when the given focus handle loses focus while the
+    /// window is still active, i.e. because focus moved somewhere else inside the window.
+    ///
+    /// Prefer this over [`Context::on_blur`] for any control that cancels, dismisses or commits
+    /// in-progress user input, such as a rename field or a modal. The operating system
+    /// deactivating the window (switching apps, or on Wayland merely switching keyboard layout)
+    /// blanks the window's focus path and is otherwise indistinguishable from the user moving
+    /// focus away, which would destroy what the user typed.
+    ///
+    /// A control that additionally wants to react to the window going away should say so
+    /// explicitly with [`Context::observe_window_activation`], so that the two facts stay
+    /// separate.
+    ///
+    /// Returns a subscription and persists until the subscription is dropped.
+    pub fn on_blur_by_user(
+        &mut self,
+        handle: &FocusHandle,
+        window: &mut Window,
+        mut listener: impl FnMut(&mut T, &mut Window, &mut Context<T>) + 'static,
+    ) -> Subscription {
+        self.on_blur(handle, window, move |view, window, cx| {
+            if window.is_window_active() {
+                listener(view, window, cx)
+            }
+        })
+    }
+
     /// Register a listener to be called when nothing in the window has focus.
     /// This typically happens when the node that was focused is removed from the tree,
     /// and this callback lets you chose a default place to restore the users focus.
@@ -641,6 +673,10 @@ impl<'a, T: 'static> Context<'a, T> {
     }
 
     /// Register a listener to be called when the given focus handle or one of its descendants loses focus.
+    ///
+    /// Like [`Context::on_blur`], this fires on window deactivation as well; see
+    /// [`Context::on_blur_by_user`].
+    ///
     /// Returns a subscription and persists until the subscription is dropped.
     pub fn on_focus_out(
         &mut self,
@@ -669,6 +705,26 @@ impl<'a, T: 'static> Context<'a, T> {
             }));
         self.defer(|_| activate());
         subscription
+    }
+
+    /// Register a listener to be called when the given focus handle or one of its descendants
+    /// loses focus while the window is still active.
+    ///
+    /// This is the subtree-wide counterpart of [`Context::on_blur_by_user`]; see that method for
+    /// why blur alone is not enough to decide whether the user is done with a control.
+    ///
+    /// Returns a subscription and persists until the subscription is dropped.
+    pub fn on_focus_out_by_user(
+        &mut self,
+        handle: &FocusHandle,
+        window: &mut Window,
+        mut listener: impl FnMut(&mut T, FocusOutEvent, &mut Window, &mut Context<T>) + 'static,
+    ) -> Subscription {
+        self.on_focus_out(handle, window, move |view, event, window, cx| {
+            if window.is_window_active() {
+                listener(view, event, window, cx)
+            }
+        })
     }
 
     /// Schedule a future to be run asynchronously.
@@ -873,5 +929,87 @@ impl<T> Borrow<App> for Context<'_, T> {
 impl<T> BorrowMut<App> for Context<'_, T> {
     fn borrow_mut(&mut self) -> &mut App {
         self.app
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Context, FocusHandle, Subscription, TestAppContext, Window, div, prelude::*};
+    use std::{cell::Cell, rc::Rc};
+
+    struct BlurCounters {
+        first: FocusHandle,
+        second: FocusHandle,
+        _subscriptions: Vec<Subscription>,
+    }
+
+    impl Render for BlurCounters {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .child(div().track_focus(&self.first))
+                .child(div().track_focus(&self.second))
+        }
+    }
+
+    fn build_blur_counters(
+        blurs: Rc<Cell<usize>>,
+        blurs_by_user: Rc<Cell<usize>>,
+        window: &mut Window,
+        cx: &mut Context<BlurCounters>,
+    ) -> BlurCounters {
+        let first = cx.focus_handle();
+        let second = cx.focus_handle();
+        window.focus(&first, cx);
+        let subscriptions = vec![
+            cx.on_blur(&first, window, move |_, _, _| blurs.set(blurs.get() + 1)),
+            cx.on_blur_by_user(&first, window, move |_, _, _| {
+                blurs_by_user.set(blurs_by_user.get() + 1)
+            }),
+        ];
+        BlurCounters {
+            first,
+            second,
+            _subscriptions: subscriptions,
+        }
+    }
+
+    #[gpui::test]
+    fn test_on_blur_by_user_fires_when_focus_moves_within_window(cx: &mut TestAppContext) {
+        let blurs = Rc::new(Cell::new(0));
+        let blurs_by_user = Rc::new(Cell::new(0));
+        let (view, cx) = cx.add_window_view({
+            let blurs = blurs.clone();
+            let blurs_by_user = blurs_by_user.clone();
+            move |window, cx| build_blur_counters(blurs, blurs_by_user, window, cx)
+        });
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+
+        view.update_in(cx, |view, window, cx| {
+            let second = view.second.clone();
+            window.focus(&second, cx);
+        });
+        cx.run_until_parked();
+
+        assert_eq!(blurs.get(), 1);
+        assert_eq!(blurs_by_user.get(), 1);
+    }
+
+    #[gpui::test]
+    fn test_on_blur_by_user_ignores_window_deactivation(cx: &mut TestAppContext) {
+        let blurs = Rc::new(Cell::new(0));
+        let blurs_by_user = Rc::new(Cell::new(0));
+        let (_view, cx) = cx.add_window_view({
+            let blurs = blurs.clone();
+            let blurs_by_user = blurs_by_user.clone();
+            move |window, cx| build_blur_counters(blurs, blurs_by_user, window, cx)
+        });
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+
+        cx.deactivate_window();
+
+        assert_eq!(blurs.get(), 1);
+        assert_eq!(blurs_by_user.get(), 0);
     }
 }
