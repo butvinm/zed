@@ -650,7 +650,7 @@ impl<D: PickerDelegate> Picker<D> {
                 self.update_matches(query, window, cx);
             }
             ErasedEditorEvent::Blurred => {
-                if self.is_modal && window.is_window_active() {
+                if self.is_modal {
                     self.cancel(&menu::Cancel, window, cx);
                 }
             }
@@ -661,9 +661,7 @@ impl<D: PickerDelegate> Picker<D> {
         let Head::Empty(_) = &self.head else {
             panic!("unexpected call");
         };
-        if window.is_window_active() {
-            self.cancel(&menu::Cancel, window, cx);
-        }
+        self.cancel(&menu::Cancel, window, cx);
     }
 
     pub fn refresh_placeholder(&mut self, window: &mut Window, cx: &mut Context<Self>) {

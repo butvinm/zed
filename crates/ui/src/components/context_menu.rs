@@ -220,6 +220,7 @@ pub struct ContextMenu {
     end_slot_action: Option<Box<dyn Action>>,
     key_context: SharedString,
     _on_blur_subscription: Subscription,
+    _on_window_deactivation_subscription: Option<Subscription>,
     keep_open_on_confirm: bool,
     fixed_width: Option<DefiniteLength>,
     main_menu: Option<Entity<ContextMenu>>,
@@ -265,36 +266,46 @@ impl EventEmitter<DismissEvent> for ContextMenu {}
 impl FluentBuilder for ContextMenu {}
 
 impl ContextMenu {
+    fn handle_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(ignore_until) = self.ignore_blur_until {
+            if Instant::now() < ignore_until {
+                return;
+            } else {
+                self.ignore_blur_until = None;
+            }
+        }
+
+        if self.main_menu.is_none()
+            && let SubmenuState::Open(open_submenu) = &self.submenu_state
+        {
+            let submenu_focus = open_submenu.entity.read(cx).focus_handle.clone();
+            if submenu_focus.contains_focused(window, cx) {
+                return;
+            }
+        }
+
+        self.cancel(&menu::Cancel, window, cx)
+    }
+
+    /// Deactivating the window no longer blurs the focused element, so the dismissal that used to
+    /// come from `on_blur` has to be requested explicitly to keep matching native menu behavior.
+    fn observe_window_deactivation(window: &mut Window, cx: &mut Context<Self>) -> Subscription {
+        cx.observe_window_activation(window, |this: &mut ContextMenu, window, cx| {
+            if !window.is_window_active() && this.focus_handle.is_focused(window) {
+                this.handle_blur(window, cx);
+            }
+        })
+    }
+
     pub fn new(
         window: &mut Window,
         cx: &mut Context<Self>,
         f: impl FnOnce(Self, &mut Window, &mut Context<Self>) -> Self,
     ) -> Self {
         let focus_handle = cx.focus_handle();
-        let _on_blur_subscription = cx.on_blur(
-            &focus_handle,
-            window,
-            |this: &mut ContextMenu, window, cx| {
-                if let Some(ignore_until) = this.ignore_blur_until {
-                    if Instant::now() < ignore_until {
-                        return;
-                    } else {
-                        this.ignore_blur_until = None;
-                    }
-                }
-
-                if this.main_menu.is_none() {
-                    if let SubmenuState::Open(open_submenu) = &this.submenu_state {
-                        let submenu_focus = open_submenu.entity.read(cx).focus_handle.clone();
-                        if submenu_focus.contains_focused(window, cx) {
-                            return;
-                        }
-                    }
-                }
-
-                this.cancel(&menu::Cancel, window, cx)
-            },
-        );
+        let _on_blur_subscription = cx.on_blur(&focus_handle, window, Self::handle_blur);
+        let _on_window_deactivation_subscription =
+            Some(Self::observe_window_deactivation(window, cx));
         window.refresh();
 
         f(
@@ -309,6 +320,7 @@ impl ContextMenu {
                 end_slot_action: None,
                 key_context: "menu".into(),
                 _on_blur_subscription,
+                _on_window_deactivation_subscription,
                 keep_open_on_confirm: false,
                 fixed_width: None,
                 main_menu: None,
@@ -348,30 +360,9 @@ impl ContextMenu {
             let builder = Rc::new(builder);
 
             let focus_handle = cx.focus_handle();
-            let _on_blur_subscription = cx.on_blur(
-                &focus_handle,
-                window,
-                |this: &mut ContextMenu, window, cx| {
-                    if let Some(ignore_until) = this.ignore_blur_until {
-                        if Instant::now() < ignore_until {
-                            return;
-                        } else {
-                            this.ignore_blur_until = None;
-                        }
-                    }
-
-                    if this.main_menu.is_none() {
-                        if let SubmenuState::Open(open_submenu) = &this.submenu_state {
-                            let submenu_focus = open_submenu.entity.read(cx).focus_handle.clone();
-                            if submenu_focus.contains_focused(window, cx) {
-                                return;
-                            }
-                        }
-                    }
-
-                    this.cancel(&menu::Cancel, window, cx)
-                },
-            );
+            let _on_blur_subscription = cx.on_blur(&focus_handle, window, Self::handle_blur);
+            let _on_window_deactivation_subscription =
+                Some(Self::observe_window_deactivation(window, cx));
             window.refresh();
 
             (builder.clone())(
@@ -386,6 +377,7 @@ impl ContextMenu {
                     end_slot_action: None,
                     key_context: "menu".into(),
                     _on_blur_subscription,
+                    _on_window_deactivation_subscription,
                     keep_open_on_confirm: true,
                     fixed_width: None,
                     main_menu: None,
@@ -430,31 +422,10 @@ impl ContextMenu {
                 clicked: false,
                 end_slot_action: None,
                 key_context: "menu".into(),
-                _on_blur_subscription: cx.on_blur(
-                    &focus_handle,
-                    window,
-                    |this: &mut ContextMenu, window, cx| {
-                        if let Some(ignore_until) = this.ignore_blur_until {
-                            if Instant::now() < ignore_until {
-                                return;
-                            } else {
-                                this.ignore_blur_until = None;
-                            }
-                        }
-
-                        if this.main_menu.is_none() {
-                            if let SubmenuState::Open(open_submenu) = &this.submenu_state {
-                                let submenu_focus =
-                                    open_submenu.entity.read(cx).focus_handle.clone();
-                                if submenu_focus.contains_focused(window, cx) {
-                                    return;
-                                }
-                            }
-                        }
-
-                        this.cancel(&menu::Cancel, window, cx)
-                    },
-                ),
+                _on_blur_subscription: cx.on_blur(&focus_handle, window, Self::handle_blur),
+                _on_window_deactivation_subscription: Some(Self::observe_window_deactivation(
+                    window, cx,
+                )),
                 keep_open_on_confirm: false,
                 fixed_width: None,
                 main_menu: None,
@@ -1240,6 +1211,7 @@ impl ContextMenu {
                 end_slot_action: None,
                 key_context: "menu".into(),
                 _on_blur_subscription,
+                _on_window_deactivation_subscription: None,
                 keep_open_on_confirm: false,
                 fixed_width: None,
                 documentation_aside: None,

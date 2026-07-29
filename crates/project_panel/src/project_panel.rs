@@ -798,12 +798,11 @@ impl ProjectPanel {
                         project_panel.autoscroll(cx);
                     }
                     EditorEvent::Blurred => {
-                        if window.is_window_active()
-                            && project_panel
-                                .state
-                                .edit_state
-                                .as_ref()
-                                .is_some_and(|state| state.processing_filename.is_none())
+                        if project_panel
+                            .state
+                            .edit_state
+                            .as_ref()
+                            .is_some_and(|state| state.processing_filename.is_none())
                         {
                             match project_panel.confirm_edit(false, window, cx) {
                                 Some(task) => {

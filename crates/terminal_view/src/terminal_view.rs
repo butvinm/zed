@@ -265,6 +265,17 @@ impl TerminalView {
         let subscriptions = vec![
             focus_in,
             focus_out,
+            // Window activation no longer produces focus events, but terminal focus reporting and
+            // the hollow cursor are meant to track whether the terminal can actually receive keys.
+            cx.observe_window_activation(window, |terminal_view, window, cx| {
+                if terminal_view.focus_handle.contains_focused(window, cx) {
+                    if window.is_window_active() {
+                        terminal_view.focus_in(window, cx);
+                    } else {
+                        terminal_view.focus_out(window, cx);
+                    }
+                }
+            }),
             cx.observe(&blink_manager, |_, _, cx| cx.notify()),
             cx.observe_global::<SettingsStore>(Self::settings_changed),
         ];

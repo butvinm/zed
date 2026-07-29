@@ -4688,6 +4688,14 @@ async fn test_rename_survives_window_deactivation(cx: &mut gpui::TestAppContext)
         panel.read_with(cx, |panel, _| panel.state.edit_state.is_some()),
         "Rename should not be cancelled when the window is deactivated, e.g. by a keyboard layout switcher grabbing keyboard focus"
     );
+
+    cx.update(|window, _| window.activate_window());
+    cx.run_until_parked();
+
+    assert!(
+        panel.read_with(cx, |panel, _| panel.state.edit_state.is_some()),
+        "Rename should survive the window being reactivated"
+    );
 }
 
 #[gpui::test]

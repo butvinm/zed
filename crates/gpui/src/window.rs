@@ -192,6 +192,13 @@ type AnyObserver = Box<dyn FnMut(&mut Window, &mut App) -> bool + 'static>;
 pub(crate) type AnyWindowFocusListener =
     Box<dyn FnMut(&WindowFocusEvent, &mut Window, &mut App) -> bool + 'static>;
 
+/// Describes a change of the focused element *within* the window.
+///
+/// Window activation is deliberately not part of this signal: deactivating the window does not
+/// blur the focused element, and reactivating it does not refocus it. Handlers that care about the
+/// window losing OS focus (stopping cursor blink, dismissing transient popovers) must subscribe via
+/// `Context::observe_window_activation` instead, so that handlers which commit or cancel user input
+/// on blur are not triggered by the user switching applications or keyboard layouts.
 pub(crate) struct WindowFocusEvent {
     pub(crate) previous_focus_path: SmallVec<[FocusId; 8]>,
     pub(crate) current_focus_path: SmallVec<[FocusId; 8]>,
@@ -746,7 +753,6 @@ pub(crate) struct DeferredDraw {
 
 pub(crate) struct Frame {
     pub(crate) focus: Option<FocusId>,
-    pub(crate) window_active: bool,
     pub(crate) element_states: FxHashMap<(GlobalElementId, TypeId), ElementStateBox>,
     accessed_element_states: Vec<(GlobalElementId, TypeId)>,
     pub(crate) mouse_listeners: Vec<Option<AnyMouseListener>>,
@@ -792,7 +798,6 @@ impl Frame {
     pub(crate) fn new(dispatch_tree: DispatchTree) -> Self {
         Frame {
             focus: None,
-            window_active: false,
             element_states: FxHashMap::default(),
             accessed_element_states: Vec::new(),
             mouse_listeners: Vec::new(),
@@ -2262,7 +2267,6 @@ impl Window {
             self.draw_roots(cx);
         }
         self.dirty_views.clear();
-        self.next_frame.window_active = self.active.get();
 
         // Register requested input handler with the platform window.
         if let Some(input_handler) = self.next_frame.input_handlers.pop() {
@@ -2276,15 +2280,11 @@ impl Window {
 
         self.invalidator.set_phase(DrawPhase::Focus);
         let previous_focus_path = self.rendered_frame.focus_path();
-        let previous_window_active = self.rendered_frame.window_active;
         mem::swap(&mut self.rendered_frame, &mut self.next_frame);
         self.next_frame.clear();
         let current_focus_path = self.rendered_frame.focus_path();
-        let current_window_active = self.rendered_frame.window_active;
 
-        if previous_focus_path != current_focus_path
-            || previous_window_active != current_window_active
-        {
+        if previous_focus_path != current_focus_path {
             if !previous_focus_path.is_empty() && current_focus_path.is_empty() {
                 self.focus_lost_listeners
                     .clone()
@@ -2292,16 +2292,8 @@ impl Window {
             }
 
             let event = WindowFocusEvent {
-                previous_focus_path: if previous_window_active {
-                    previous_focus_path
-                } else {
-                    Default::default()
-                },
-                current_focus_path: if current_window_active {
-                    current_focus_path
-                } else {
-                    Default::default()
-                },
+                previous_focus_path,
+                current_focus_path,
             };
             self.focus_listeners
                 .clone()

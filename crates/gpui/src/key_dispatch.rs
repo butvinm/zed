@@ -1132,4 +1132,72 @@ mod tests {
         cx.simulate_keystrokes("ctrl-b [");
         test.update(cx, |test, _| assert_eq!(test.text.borrow().as_str(), "["))
     }
+
+    #[crate::test]
+    fn test_window_activation_does_not_produce_focus_events(cx: &mut TestAppContext) {
+        use crate::InteractiveElement;
+
+        struct FocusableView {
+            focus_handle: FocusHandle,
+        }
+
+        impl Render for FocusableView {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                crate::div().track_focus(&self.focus_handle)
+            }
+        }
+
+        let (view, cx) = cx.add_window_view(|_, cx| FocusableView {
+            focus_handle: cx.focus_handle(),
+        });
+        let focus_handle = view.update(cx, |view, _| view.focus_handle.clone());
+
+        let focus_events: Rc<RefCell<Vec<&'static str>>> = Rc::new(RefCell::new(Vec::new()));
+        let _subscriptions = cx.update(|window, cx| {
+            window.focus(&focus_handle, cx);
+            window.activate_window();
+            [
+                window.on_focus_in(&focus_handle, cx, {
+                    let focus_events = focus_events.clone();
+                    move |_, _| focus_events.borrow_mut().push("focus_in")
+                }),
+                window.on_focus_out(&focus_handle, cx, {
+                    let focus_events = focus_events.clone();
+                    move |_, _, _| focus_events.borrow_mut().push("focus_out")
+                }),
+            ]
+        });
+        cx.run_until_parked();
+        focus_events.borrow_mut().clear();
+
+        cx.deactivate_window();
+        cx.update(|window, _| {
+            assert!(!window.is_window_active());
+            assert!(
+                focus_handle.is_focused(window),
+                "Deactivating the window must not move focus"
+            );
+        });
+        assert!(
+            focus_events.borrow().is_empty(),
+            "Deactivating the window must not blur the focused element, got {:?}",
+            focus_events.borrow()
+        );
+
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+        assert!(
+            focus_events.borrow().is_empty(),
+            "Reactivating the window must not refocus the focused element, got {:?}",
+            focus_events.borrow()
+        );
+
+        cx.update(|window, cx| window.focus(&cx.focus_handle(), cx));
+        cx.run_until_parked();
+        assert_eq!(
+            *focus_events.borrow(),
+            ["focus_out"],
+            "Moving focus within the window must still produce focus events"
+        );
+    }
 }

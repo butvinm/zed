@@ -2545,6 +2545,8 @@ impl Editor {
                             });
                             if active {
                                 editor.show_mouse_cursor(cx);
+                            } else if editor.focus_handle.is_focused(window) {
+                                editor.hide_transient_ui(window, cx);
                             }
                         }),
                     ]
@@ -25202,6 +25204,12 @@ impl Editor {
         if let Some(blame) = self.blame.as_ref() {
             blame.update(cx, GitBlame::blur)
         }
+        self.hide_transient_ui(window, cx);
+        cx.emit(EditorEvent::Blurred);
+        cx.notify();
+    }
+
+    fn hide_transient_ui(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.hover_state.focused(window, cx) {
             hide_hover(self, cx);
         }
@@ -25214,8 +25222,6 @@ impl Editor {
             self.hide_context_menu(window, cx);
         }
         self.take_active_edit_prediction(true, cx);
-        cx.emit(EditorEvent::Blurred);
-        cx.notify();
     }
 
     pub fn observe_pending_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
