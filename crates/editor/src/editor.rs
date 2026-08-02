@@ -2222,6 +2222,8 @@ impl Editor {
                 .detach();
             cx.on_blur(&focus_handle, window, Self::handle_blur)
                 .detach();
+            cx.on_deactivated_while_focused(&focus_handle, window, Self::handle_window_deactivated)
+                .detach();
             cx.observe_pending_input(window, Self::observe_pending_input)
                 .detach();
         }
@@ -10584,6 +10586,17 @@ impl Editor {
         if let Some(blame) = self.blame.as_ref() {
             blame.update(cx, GitBlame::blur)
         }
+        self.hide_transient_ui(window, cx);
+        cx.emit(EditorEvent::Blurred);
+        cx.notify();
+    }
+
+    fn handle_window_deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.hide_transient_ui(window, cx);
+        cx.notify();
+    }
+
+    fn hide_transient_ui(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.hover_state.focused(window, cx) {
             hide_hover(self, cx);
         }
@@ -10596,8 +10609,6 @@ impl Editor {
             self.hide_context_menu(window, cx);
         }
         self.take_active_edit_prediction(true, cx);
-        cx.emit(EditorEvent::Blurred);
-        cx.notify();
     }
 
     pub fn register_action_renderer(

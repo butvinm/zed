@@ -166,11 +166,11 @@ impl GoToLine {
         &mut self,
         _: &Entity<Editor>,
         event: &editor::EditorEvent,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         match event {
-            editor::EditorEvent::Blurred if window.is_window_active() => {
+            editor::EditorEvent::Blurred => {
                 self.prev_scroll_position.take();
                 cx.emit(DismissEvent)
             }

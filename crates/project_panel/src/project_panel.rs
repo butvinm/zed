@@ -777,7 +777,7 @@ impl ProjectPanel {
                     EditorEvent::SelectionsChanged { .. } => {
                         project_panel.autoscroll(cx);
                     }
-                    EditorEvent::Blurred if window.is_window_active() => {
+                    EditorEvent::Blurred => {
                         if project_panel
                             .state
                             .edit_state

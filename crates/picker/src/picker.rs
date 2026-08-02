@@ -1160,7 +1160,7 @@ impl<D: PickerDelegate> Picker<D> {
                 let menu_focused = self.actions_menu_handle.is_focused(window, cx)
                     || self.actions_menu_handle.is_deployed()
                     || self.delegate.has_another_open_menu(window, cx);
-                if self.draws_own_container() && window.is_window_active() && !menu_focused {
+                if self.draws_own_container() && !menu_focused {
                     self.cancel(&menu::Cancel, window, cx);
                 }
             }
@@ -1171,9 +1171,7 @@ impl<D: PickerDelegate> Picker<D> {
         let Head::Empty(_) = &self.head else {
             panic!("unexpected call");
         };
-        if window.is_window_active() {
-            self.cancel(&menu::Cancel, window, cx);
-        }
+        self.cancel(&menu::Cancel, window, cx);
     }
 
     pub fn refresh_placeholder(&mut self, window: &mut Window, cx: &mut Context<Self>) {

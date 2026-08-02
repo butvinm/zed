@@ -668,6 +668,31 @@ impl<'a, T: 'static> Context<'a, T> {
         subscription
     }
 
+    /// Register a listener to be called when the operating system deactivates the window while the given focus handle - or one of its descendants - holds focus.
+    ///
+    /// Losing the window and losing focus are separate facts delivered on separate channels.
+    /// [`Self::on_blur`] and [`Self::on_focus_out`] fire only when focus actually moves somewhere else inside the window,
+    /// never when the user switches to another application or, on Wayland, merely switches keyboard layout.
+    /// Deactivation leaves focus untouched, so the same handle still holds it when the window comes back.
+    ///
+    /// Use [`Self::on_blur`] to commit or discard an in-progress edit: that is a response to the user moving on.
+    /// Use this method for state that only makes sense while the window is in front of the user:
+    /// transient popovers, menus, cursor blinking, focus reporting to a child process.
+    /// This reports only the falling edge; pair it with [`Self::observe_window_activation`] if the rising edge also matters.
+    pub fn on_deactivated_while_focused(
+        &mut self,
+        handle: &FocusHandle,
+        window: &mut Window,
+        mut listener: impl FnMut(&mut T, &mut Window, &mut Context<T>) + 'static,
+    ) -> Subscription {
+        let handle = handle.clone();
+        self.observe_window_activation(window, move |view, window, cx| {
+            if !window.is_window_active() && handle.contains_focused(window, cx) {
+                listener(view, window, cx);
+            }
+        })
+    }
+
     /// Schedule a future to be run asynchronously.
     /// The given callback is invoked with a [`WeakEntity<V>`] to avoid leaking the entity for a long-running process.
     /// It's also given an [`AsyncWindowContext`], which can be used to access the state of the entity across await points.

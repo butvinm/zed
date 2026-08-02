@@ -947,7 +947,6 @@ pub(crate) struct DeferredDraw {
 
 pub(crate) struct Frame {
     pub(crate) focus: Option<FocusId>,
-    pub(crate) window_active: bool,
     pub(crate) element_states: FxHashMap<(GlobalElementId, TypeId), ElementStateBox>,
     accessed_element_states: Vec<(GlobalElementId, TypeId)>,
     pub(crate) mouse_listeners: Vec<Option<AnyMouseListener>>,
@@ -993,7 +992,6 @@ impl Frame {
     pub(crate) fn new(dispatch_tree: DispatchTree) -> Self {
         Frame {
             focus: None,
-            window_active: false,
             element_states: FxHashMap::default(),
             accessed_element_states: Vec::new(),
             mouse_listeners: Vec::new(),
@@ -2849,7 +2847,6 @@ impl Window {
             self.draw_roots(cx);
         }
         self.dirty_views.clear();
-        self.next_frame.window_active = self.active.get();
 
         // Register requested input handler with the platform window.
         // Use .take() instead of .pop() to preserve Vec length, so that cached
@@ -2872,16 +2869,12 @@ impl Window {
 
         self.invalidator.set_phase(DrawPhase::Focus);
         let previous_focus_path = self.rendered_frame.focus_path();
-        let previous_window_active = self.rendered_frame.window_active;
         mem::swap(&mut self.rendered_frame, &mut self.next_frame);
         self.next_frame.clear();
         let current_focus_path = self.rendered_frame.focus_path();
-        let current_window_active = self.rendered_frame.window_active;
         let mut focus_before_listeners = self.focus;
 
-        if previous_focus_path != current_focus_path
-            || previous_window_active != current_window_active
-        {
+        if previous_focus_path != current_focus_path {
             if !previous_focus_path.is_empty() && current_focus_path.is_empty() {
                 self.focus_lost_path = previous_focus_path.clone();
                 self.focus_lost_listeners
@@ -2896,16 +2889,8 @@ impl Window {
             }
 
             let event = WindowFocusEvent {
-                previous_focus_path: if previous_window_active {
-                    previous_focus_path
-                } else {
-                    Default::default()
-                },
-                current_focus_path: if current_window_active {
-                    current_focus_path
-                } else {
-                    Default::default()
-                },
+                previous_focus_path,
+                current_focus_path,
             };
             self.focus_listeners
                 .clone()
@@ -6792,8 +6777,8 @@ mod tests {
         ExternalDragPayload, ExternalPaths, FileDragPaths, FileDropEvent, FocusHandle,
         InputEvent as _, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
         MouseMoveEvent, ParentElement, Pixels, Point, Render, RequestFrameOptions,
-        StatefulInteractiveElement as _, Styled, TestAppContext, Window, WindowAppearance,
-        WindowOptions, canvas, div, point, px, size,
+        StatefulInteractiveElement as _, Styled, Subscription, TestAppContext, Window,
+        WindowAppearance, WindowOptions, canvas, div, point, px, size,
     };
 
     struct EmptyView;
@@ -7401,5 +7386,115 @@ mod tests {
             })
             .unwrap();
         assert_eq!(b_focus_count.get(), 1);
+    }
+
+    struct FocusTestView {
+        first: FocusHandle,
+        second: FocusHandle,
+        _subscriptions: Vec<Subscription>,
+    }
+
+    impl FocusTestView {
+        fn new(
+            events: Rc<RefCell<Vec<&'static str>>>,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> Self {
+            let first = cx.focus_handle();
+            let second = cx.focus_handle();
+            let _subscriptions = vec![
+                cx.on_focus(&first, window, {
+                    let events = events.clone();
+                    move |_, _, _| events.borrow_mut().push("focus")
+                }),
+                cx.on_focus_in(&first, window, {
+                    let events = events.clone();
+                    move |_, _, _| events.borrow_mut().push("focus_in")
+                }),
+                cx.on_blur(&first, window, {
+                    let events = events.clone();
+                    move |_, _, _| events.borrow_mut().push("blur")
+                }),
+                cx.on_focus_out(&first, window, {
+                    let events = events.clone();
+                    move |_, _, _, _| events.borrow_mut().push("focus_out")
+                }),
+            ];
+
+            Self {
+                first,
+                second,
+                _subscriptions,
+            }
+        }
+    }
+
+    impl Render for FocusTestView {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .child(div().track_focus(&self.first))
+                .child(div().track_focus(&self.second))
+        }
+    }
+
+    #[gpui::test]
+    fn test_window_activation_is_not_a_focus_change(cx: &mut TestAppContext) {
+        let events = Rc::new(RefCell::new(Vec::<&'static str>::new()));
+        let (view, cx) = cx.add_window_view({
+            let events = events.clone();
+            move |window, cx| FocusTestView::new(events, window, cx)
+        });
+
+        view.update_in(cx, |view, window, cx| window.focus(&view.first, cx));
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+
+        assert!(
+            cx.update(|window, _| window.is_window_active()),
+            "a test window starts inactive, so deactivating it below would prove nothing"
+        );
+        assert!(
+            view.update_in(cx, |view, window, _| view.first.is_focused(window)),
+            "the first handle must hold focus before the window is deactivated"
+        );
+        events.borrow_mut().clear();
+
+        cx.deactivate_window();
+
+        assert!(
+            !cx.update(|window, _| window.is_window_active()),
+            "the window must actually have been deactivated"
+        );
+        assert!(
+            events.borrow().is_empty(),
+            "deactivating the window must not be reported as a focus change, got {:?}",
+            events.borrow()
+        );
+        assert!(
+            view.update_in(cx, |view, window, _| view.first.is_focused(window)),
+            "focus must survive window deactivation"
+        );
+
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+
+        assert!(
+            events.borrow().is_empty(),
+            "activating the window must not be reported as a focus change, got {:?}",
+            events.borrow()
+        );
+        assert!(
+            view.update_in(cx, |view, window, _| view.first.is_focused(window)),
+            "focus must survive window activation"
+        );
+
+        view.update_in(cx, |view, window, cx| window.focus(&view.second, cx));
+        cx.run_until_parked();
+
+        let observed = events.borrow().clone();
+        assert!(
+            observed.contains(&"blur") && observed.contains(&"focus_out"),
+            "a genuine focus move must still be reported, got {observed:?}"
+        );
     }
 }
