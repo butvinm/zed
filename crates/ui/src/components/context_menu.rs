@@ -301,8 +301,11 @@ impl ContextMenu {
                 this.cancel(&menu::Cancel, window, cx)
             },
         );
-        let _on_window_deactivated_subscription =
-            cx.on_deactivated_while_focused(&focus_handle, window, Self::on_window_deactivated);
+        let _on_window_deactivated_subscription = cx.observe_window_deactivated_while_focused(
+            &focus_handle,
+            window,
+            Self::on_window_deactivated,
+        );
         window.refresh();
 
         // When the menu first receives focus (i.e. when it opens), move the
@@ -396,8 +399,11 @@ impl ContextMenu {
                     this.cancel(&menu::Cancel, window, cx)
                 },
             );
-            let _on_window_deactivated_subscription =
-                cx.on_deactivated_while_focused(&focus_handle, window, Self::on_window_deactivated);
+            let _on_window_deactivated_subscription = cx.observe_window_deactivated_while_focused(
+                &focus_handle,
+                window,
+                Self::on_window_deactivated,
+            );
             window.refresh();
 
             // See the note in `ContextMenu::new`: select an item when the menu
@@ -492,7 +498,7 @@ impl ContextMenu {
                         this.cancel(&menu::Cancel, window, cx)
                     },
                 ),
-                _on_window_deactivated_subscription: cx.on_deactivated_while_focused(
+                _on_window_deactivated_subscription: cx.observe_window_deactivated_while_focused(
                     &focus_handle,
                     window,
                     Self::on_window_deactivated,
@@ -1328,7 +1334,7 @@ impl ContextMenu {
                 |_this: &mut ContextMenu, _window, _cx| {},
             );
             // A submenu is dismissed by its parent, which contains it in the focus tree.
-            let _on_window_deactivated_subscription = cx.on_deactivated_while_focused(
+            let _on_window_deactivated_subscription = cx.observe_window_deactivated_while_focused(
                 &focus_handle,
                 window,
                 |_this: &mut ContextMenu, _window, _cx| {},

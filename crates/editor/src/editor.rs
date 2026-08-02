@@ -2222,8 +2222,12 @@ impl Editor {
                 .detach();
             cx.on_blur(&focus_handle, window, Self::handle_blur)
                 .detach();
-            cx.on_deactivated_while_focused(&focus_handle, window, Self::handle_window_deactivated)
-                .detach();
+            cx.observe_window_deactivated_while_focused(
+                &focus_handle,
+                window,
+                Self::handle_window_deactivated,
+            )
+            .detach();
             cx.observe_pending_input(window, Self::observe_pending_input)
                 .detach();
         }
