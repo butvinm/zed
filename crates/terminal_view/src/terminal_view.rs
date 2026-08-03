@@ -254,17 +254,14 @@ impl TerminalView {
             },
         );
         // Xterm focus reporting tells the child process whether the user can see its cursor, so both edges of window activation have to be forwarded.
-        let window_activation = cx.observe_window_activation_while_focused(
-            &focus_handle,
-            window,
-            |terminal_view, window, cx| {
-                if window.is_window_active() {
-                    terminal_view.focus_in(window, cx);
-                } else {
-                    terminal_view.focus_out(window, cx);
-                }
-            },
-        );
+        let window_activated =
+            cx.on_window_activated(&focus_handle, window, |terminal_view, window, cx| {
+                terminal_view.focus_in(window, cx);
+            });
+        let window_deactivated =
+            cx.on_window_deactivated(&focus_handle, window, |terminal_view, window, cx| {
+                terminal_view.focus_out(window, cx);
+            });
         let cursor_shape = TerminalSettings::get_global(cx).cursor_shape;
 
         let scroll_handle = TerminalScrollHandle::new(terminal.read(cx));
@@ -285,7 +282,8 @@ impl TerminalView {
         let subscriptions = vec![
             focus_in,
             focus_out,
-            window_activation,
+            window_activated,
+            window_deactivated,
             cx.observe(&blink_manager, |_, _, cx| cx.notify()),
             cx.observe_global::<SettingsStore>(Self::settings_changed),
         ];

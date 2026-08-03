@@ -220,7 +220,7 @@ pub struct ContextMenu {
     end_slot_action: Option<Box<dyn Action>>,
     key_context: SharedString,
     _on_blur_subscription: Subscription,
-    _on_window_activation_subscription: Subscription,
+    _on_window_deactivated_subscription: Subscription,
     keep_open_on_confirm: bool,
     fixed_width: Option<DefiniteLength>,
     main_menu: Option<Entity<ContextMenu>>,
@@ -301,11 +301,8 @@ impl ContextMenu {
                 this.cancel(&menu::Cancel, window, cx)
             },
         );
-        let _on_window_activation_subscription = cx.observe_window_activation_while_focused(
-            &focus_handle,
-            window,
-            Self::on_window_activation,
-        );
+        let _on_window_deactivated_subscription =
+            cx.on_window_deactivated(&focus_handle, window, Self::on_window_deactivated);
         window.refresh();
 
         // When the menu first receives focus (i.e. when it opens), move the
@@ -334,7 +331,7 @@ impl ContextMenu {
                 end_slot_action: None,
                 key_context: "menu".into(),
                 _on_blur_subscription,
-                _on_window_activation_subscription,
+                _on_window_deactivated_subscription,
                 keep_open_on_confirm: false,
                 fixed_width: None,
                 main_menu: None,
@@ -399,11 +396,8 @@ impl ContextMenu {
                     this.cancel(&menu::Cancel, window, cx)
                 },
             );
-            let _on_window_activation_subscription = cx.observe_window_activation_while_focused(
-                &focus_handle,
-                window,
-                Self::on_window_activation,
-            );
+            let _on_window_deactivated_subscription =
+                cx.on_window_deactivated(&focus_handle, window, Self::on_window_deactivated);
             window.refresh();
 
             // See the note in `ContextMenu::new`: select an item when the menu
@@ -427,7 +421,7 @@ impl ContextMenu {
                     end_slot_action: None,
                     key_context: "menu".into(),
                     _on_blur_subscription,
-                    _on_window_activation_subscription,
+                    _on_window_deactivated_subscription,
                     keep_open_on_confirm: true,
                     fixed_width: None,
                     main_menu: None,
@@ -498,10 +492,10 @@ impl ContextMenu {
                         this.cancel(&menu::Cancel, window, cx)
                     },
                 ),
-                _on_window_activation_subscription: cx.observe_window_activation_while_focused(
+                _on_window_deactivated_subscription: cx.on_window_deactivated(
                     &focus_handle,
                     window,
-                    Self::on_window_activation,
+                    Self::on_window_deactivated,
                 ),
                 keep_open_on_confirm: false,
                 fixed_width: None,
@@ -1095,10 +1089,7 @@ impl ContextMenu {
     }
 
     /// A menu is throwaway UI that should not outlive the user's attention, so it closes when the window goes to the background even though focus itself never moved.
-    fn on_window_activation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if window.is_window_active() {
-            return;
-        }
+    fn on_window_deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.cancel(&menu::Cancel, window, cx);
     }
 
@@ -1337,7 +1328,7 @@ impl ContextMenu {
                 |_this: &mut ContextMenu, _window, _cx| {},
             );
             // A submenu is dismissed by its parent, which contains it in the focus tree.
-            let _on_window_activation_subscription = cx.observe_window_activation_while_focused(
+            let _on_window_deactivated_subscription = cx.on_window_deactivated(
                 &focus_handle,
                 window,
                 |_this: &mut ContextMenu, _window, _cx| {},
@@ -1354,7 +1345,7 @@ impl ContextMenu {
                 end_slot_action: None,
                 key_context: "menu".into(),
                 _on_blur_subscription,
-                _on_window_activation_subscription,
+                _on_window_deactivated_subscription,
                 keep_open_on_confirm: false,
                 fixed_width: None,
                 documentation_aside: None,
