@@ -2222,10 +2222,10 @@ impl Editor {
                 .detach();
             cx.on_blur(&focus_handle, window, Self::handle_blur)
                 .detach();
-            cx.observe_window_deactivated_while_focused(
+            cx.observe_window_activation_while_focused(
                 &focus_handle,
                 window,
-                Self::handle_window_deactivated,
+                Self::handle_window_activation,
             )
             .detach();
             cx.observe_pending_input(window, Self::observe_pending_input)
@@ -10595,7 +10595,10 @@ impl Editor {
         cx.notify();
     }
 
-    fn handle_window_deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn handle_window_activation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if window.is_window_active() {
+            return;
+        }
         self.hide_transient_ui(window, cx);
         cx.notify();
     }

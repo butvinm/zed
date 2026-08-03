@@ -458,7 +458,9 @@ impl<'a, T: 'static> Context<'a, T> {
         subscription
     }
 
-    /// Register a listener to be called when the operating system deactivates the window while the given focus handle - or one of its descendants - holds focus.
+    /// Register a listener to be called when the operating system activates or deactivates the window,
+    /// while the given focus handle - or one of its descendants - holds focus.
+    /// Read the new state with [`Window::is_window_active`], as with [`Self::observe_window_activation`].
     ///
     /// Losing the window and losing focus are separate facts delivered on separate channels.
     /// [`Self::on_blur`] and [`Self::on_focus_out`] fire only when focus actually moves somewhere else inside the window,
@@ -468,8 +470,7 @@ impl<'a, T: 'static> Context<'a, T> {
     /// Use [`Self::on_blur`] to commit or discard an in-progress edit: that is a response to the user moving on.
     /// Use this method for state that only makes sense while the window is in front of the user:
     /// transient popovers, menus, cursor blinking, focus reporting to a child process.
-    /// This reports only the falling edge; pair it with [`Self::observe_window_activation`] if the rising edge also matters.
-    pub fn observe_window_deactivated_while_focused(
+    pub fn observe_window_activation_while_focused(
         &mut self,
         handle: &FocusHandle,
         window: &mut Window,
@@ -477,7 +478,7 @@ impl<'a, T: 'static> Context<'a, T> {
     ) -> Subscription {
         let handle = handle.clone();
         self.observe_window_activation(window, move |view, window, cx| {
-            if !window.is_window_active() && handle.contains_focused(window, cx) {
+            if handle.contains_focused(window, cx) {
                 listener(view, window, cx);
             }
         })
@@ -620,7 +621,7 @@ impl<'a, T: 'static> Context<'a, T> {
     /// Returns a subscription and persists until the subscription is dropped.
     ///
     /// This fires only when focus moves elsewhere inside the window, never when the operating
-    /// system deactivates the window. For that, see [`Self::observe_window_deactivated_while_focused`].
+    /// system deactivates the window. For that, see [`Self::observe_window_activation_while_focused`].
     pub fn on_blur(
         &mut self,
         handle: &FocusHandle,
@@ -669,7 +670,7 @@ impl<'a, T: 'static> Context<'a, T> {
     /// Returns a subscription and persists until the subscription is dropped.
     ///
     /// This fires only when focus moves elsewhere inside the window, never when the operating
-    /// system deactivates the window. For that, see [`Self::observe_window_deactivated_while_focused`].
+    /// system deactivates the window. For that, see [`Self::observe_window_activation_while_focused`].
     pub fn on_focus_out(
         &mut self,
         handle: &FocusHandle,
