@@ -929,10 +929,17 @@ impl VisualTestContext {
     }
 
     /// Simulates the user blurring the window.
+    ///
+    /// Panics if this window is not the active one, because deactivating an inactive window
+    /// does nothing and any assertion that follows would hold whether or not the behaviour
+    /// under test is correct.
     pub fn deactivate_window(&mut self) {
-        if Some(self.window) == self.test_platform.active_window() {
-            self.test_platform.set_active_window(None)
-        }
+        assert_eq!(
+            Some(self.window),
+            self.test_platform.active_window(),
+            "deactivate_window does nothing unless this window is the active one"
+        );
+        self.test_platform.set_active_window(None);
         self.background_executor.run_until_parked();
     }
 
