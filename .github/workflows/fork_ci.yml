@@ -1,0 +1,35 @@
+name: fork-ci
+
+on:
+  push:
+    branches:
+      - 'ci/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt/hostedtoolcache /usr/local/lib/android /usr/share/dotnet /usr/local/share/boost
+          df -h /
+
+      - name: Install Linux dependencies
+        run: ./script/linux
+
+      - name: Run checks
+        run: bash .github/fork-ci-commands.sh
+
+      - name: Upload zed binary
+        if: hashFiles('target/release/zed') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: zed-linux-x86_64
+          path: target/release/zed
+
+      - name: Report disk usage
+        if: always()
+        run: df -h /
